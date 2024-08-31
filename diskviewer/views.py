@@ -24,16 +24,16 @@ def get_back(path):
     return back
 
 
-def get_items(path, api_key):
+def get_items(part_path, api_key):
     now = timezone.now()
     time_limit = now - timedelta(days=1)
-    any_items_exist = Item.objects.filter(part_path=path).exists()
-    old_items = Item.objects.filter(part_path=path, updated_at__lte=time_limit).exists()
+    any_items_exist = Item.objects.filter(part_path=part_path, api_key=api_key).exists()
+    old_items = Item.objects.filter(part_path=part_path, api_key=api_key, updated_at__lte=time_limit).exists()
 
-    if not any_items_exist or any_items_exist and old_items:
+    if not any_items_exist or old_items:
         url = "https://cloud-api.yandex.net/v1/disk/public/resources"
         params = {
-            'path': path,
+            'path': part_path,
             'public_key': api_key
         }
         response = requests.get(url, params=params)
@@ -42,59 +42,53 @@ def get_items(path, api_key):
         return items
     else:
         items = []
-        for item in Item.objects.filter(part_path=path).values('path', 'url', 'name', 'mime_type'):
+        for item in Item.objects.filter(part_path=part_path, api_key=api_key).values('name', 'url', 'mime_type'):
             items.append({
-                'path': item['path'],
-                'file': item['url'],
                 'name': item['name'],
+                'file': item['url'],
                 'mime_type': item['mime_type']
             })
         return items
 
 
-def create_results(items):
+def create_results(items, part_path, api_key):
     results = []
     for item in items:
         result_item = {
-            'path': item.get('path'),
-            'name': None,
-            'url': None,
+            'name': item.get('name') or item['path'].rsplit('/', 1)[-1],
+            'part_path': part_path,
+            'url': item.get('file'),
             'mime_type': item.get('mime_type'),
         }
         results.append(result_item)
 
-    for result in results:
-        for item in items:
-            if result['path'] == item.get('path'):
-                result['name'] = result['path'].rsplit('/', 1)[-1]
-                result['part_path'] = result['path'].rsplit('/', 1)[0]
-                result['url'] = item.get('file')
-                Item.objects.update_or_create(
-                    path=result['path'],
-                    defaults={
-                        'name': result['name'],
-                        'part_path': result['part_path'],
-                        'url': result['url'],
-                        'mime_type': result['mime_type'],
-                        'updated_at': timezone.now()
-                    }
-                )
+        Item.objects.update_or_create(
+            name=result_item['name'],
+            part_path=result_item['part_path'],
+            api_key=api_key,
+            defaults={
+                'url': result_item['url'],
+                'mime_type': result_item['mime_type'],
+                'updated_at': timezone.now()
+            }
+        )
+
     return results
 
 
 def yandex_disk_request(request):
     api_key = request.session.get('api_key')
-    path = request.session.get('path', '')
+    part_path = request.session.get('part_path', '')
 
     if 'path' in request.GET:
-        path = request.GET.get('path')
-        request.session['path'] = path
+        part_path = request.GET.get('path')
+        request.session['part_path'] = part_path
 
-    back = get_back(path)
-    items = get_items(path, api_key)
-    results = create_results(items)
+    back = get_back(part_path)
+    items = get_items(part_path, api_key)
+    results = create_results(items, part_path, api_key)  # Передаем part_path
 
     for result in results:
-        result['path'] = f"/diskviewer/?path={result['path']}"
+        result['path'] = f"/diskviewer/?path={result['part_path']}/{result['name']}"
 
-    return render(request, 'yandex_disk.html', {'items': results, 'path': path, 'back': back})
+    return render(request, 'yandex_disk.html', {'items': results, 'path': part_path, 'back': back})
