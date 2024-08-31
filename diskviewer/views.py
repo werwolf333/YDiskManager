@@ -54,25 +54,32 @@ def get_items(part_path, api_key):
 def create_results(items, part_path, api_key):
     results = []
     for item in items:
-        result_item = {
-            'name': item.get('name') or item['path'].rsplit('/', 1)[-1],
-            'part_path': part_path,
-            'url': item.get('file'),
-            'mime_type': item.get('mime_type'),
-        }
-        results.append(result_item)
-
-        Item.objects.update_or_create(
-            name=result_item['name'],
-            part_path=result_item['part_path'],
-            api_key=api_key,
-            defaults={
-                'url': result_item['url'],
-                'mime_type': result_item['mime_type'],
-                'updated_at': timezone.now()
+        if 'public_key' in item:
+            result_item = {
+                'name': item.get('name') or item['path'].rsplit('/', 1)[-1],
+                'part_path': part_path,
+                'url': item.get('file'),
+                'mime_type': item.get('mime_type'),
             }
-        )
-
+            results.append(result_item)
+            Item.objects.update_or_create(
+                name=result_item['name'],
+                part_path=result_item['part_path'],
+                api_key=api_key,
+                defaults={
+                    'url': result_item['url'],
+                    'mime_type': result_item['mime_type'],
+                    'updated_at': timezone.now()
+                }
+            )
+        else:
+            result_item = {
+                'name': item.get('name') or item['path'].rsplit('/', 1)[-1],
+                'part_path': part_path,
+                'url': item.get('file'),
+                'mime_type': item.get('mime_type'),
+            }
+            results.append(result_item)
     return results
 
 
