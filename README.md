@@ -17,7 +17,7 @@ git clone https://github.com/werwolf333/yandex_disk_manager_django.git
 Перейдите в директорию проекта:
 
 ```bash
-cd YDiskManager
+cd yandex_disk_manager_django
 ```
 **2. Настройка виртуального окружения**
 
