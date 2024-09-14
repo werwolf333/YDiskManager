@@ -12,7 +12,7 @@
 Начните с клонирования репозитория на локальную машину:
 
 ```bash
-git clone https://github.com/werwolf333/YDiskManager.git
+git clone https://github.com/werwolf333/yandex_disk_manager_django.git
 ```
 Перейдите в директорию проекта:
 
